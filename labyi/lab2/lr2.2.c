@@ -1,30 +1,44 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <inttypes.h>
+#include <errno.h>
 #include <sys/neutrino.h>
-#include "thLib.h"
+#include <sys/sched.h>
+#include <string.h>
 
-int main() {
-  pthread_attr_t attr1, attr2;
-  
-        printf("Prog threads PID %d \n", getpid());
+int main(void) {
+    char smsg[20];
+    char rmsg[200];
+    int coid;
+    long serv_pid;
+    struct sched_param param;
 
-  pthread_attr_init(&attr1);
-  pthread_attr_setinheritsched(&attr1, PTHREAD_EXPLICIT_SCHED);
-  pthread_attr_setschedpolicy(&attr1, SCHED_RR);
-  attr1.param.sched_priority = 13;
+    // Устанавливаем приоритет и алгоритм планирования (RR)
+    param.sched_priority = 8;
+    pthread_setschedparam(pthread_self(), SCHED_RR, &param);
+    printf("Belosludceva Vlada Dmitrievna\nGroup: I914B\n");
 
-  pthread_attr_init(&attr2);
-  pthread_attr_setinheritsched(&attr1, PTHREAD_EXPLICIT_SCHED);
-  pthread_attr_setschedpolicy(&attr1, SCHED_FIFO);
-  attr1.param.sched_priority = 10;
+    printf("Client started (Priority: %d, Policy: RR)\n", param.sched_priority);
+    printf("Enter server PID: ");
+    scanf("%ld", &serv_pid);
+    printf("Connecting to server PID: %ld\n", serv_pid);
 
-        pthread_create(&thread_id1, NULL, long_thread1, NULL);
-        pthread_create(&thread_id2, NULL, long_thread2, NULL);
+    coid = ConnectAttach(0, serv_pid, 1, 0, 0);
+    if(coid == -1) {
+        perror("ConnectAttach failed");
+        return 1;
+    }
 
-  pthread_join(thread_id1, NULL);
-  
-  pthread_attr_destroy(attr1);
-  pthread_attr_destroy(attr2);
+    printf("Enter message to send: ");
+    scanf("%255s", smsg);
+    printf("Sending message: \"%s\"\n", smsg);
 
-        return 0;
+    if(MsgSend(coid, smsg, strlen(smsg) + 1, rmsg, sizeof(rmsg)) == -1) {
+        perror("MsgSend failed");
+    } else {
+        printf("Received reply: \"%s\"\n", rmsg);
+    }
+
+    ConnectDetach(coid);
+    return 0;
 }
